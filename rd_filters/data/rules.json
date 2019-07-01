@@ -15,14 +15,14 @@
         0,
         500
     ],
-    "Rule_BMS": false,
-    "Rule_Dundee": false,
-    "Rule_Glaxo": false,
+    "Rule_BMS": true,
+    "Rule_Dundee": true,
+    "Rule_Glaxo": true,
     "Rule_Inpharmatica": true,
-    "Rule_LINT": false,
-    "Rule_MLSMR": false,
-    "Rule_PAINS": false,
-    "Rule_SureChEMBL": false,
+    "Rule_LINT": true,
+    "Rule_MLSMR": true,
+    "Rule_PAINS": true,
+    "Rule_SureChEMBL": true,
     "TPSA": [
         0,
         200

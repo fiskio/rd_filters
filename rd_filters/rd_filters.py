@@ -173,6 +173,7 @@ def main():
         start_time = time.time()
         p = Pool(mp.cpu_count())
         input_data = [x.split() for x in open(input_file_name)]
+        # TODO accept any input file
         input_data = [x for x in input_data if len(x) == 2]
         rule_dict = read_rules(rules_file_path)
 

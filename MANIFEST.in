@@ -1,1 +1,4 @@
 graft rd_filters
+
+include rd_filters/data/rules.json
+include rd_filters/data/alert_collection.csv
