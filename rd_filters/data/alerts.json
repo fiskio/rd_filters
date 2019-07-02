@@ -1,0 +1,12 @@
+{
+        "alert_sets": [
+            "BMS",
+            "Dundee",
+            "Glaxo",
+            "Inpharmatica",
+            "LINT",
+            "MLSMR",
+            "PAINS",
+            "SureChEMBL"
+        ]
+}
