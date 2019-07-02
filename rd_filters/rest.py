@@ -189,23 +189,18 @@ def analyse(results):
             violations += 1
             risky_mols.append(v['SMILES'])
 
-    # get counts
-    phys_chem_counts = {}
-    for k, v in phys_chem_smiles.items():
-        phys_chem_counts[k] = f'{len(v)} [{100 * len(v) / total}%]'
+    alert_res = [dict(id=id, desc=desc, smiles=smiles, count=len(smiles), percentage=f'{100 * len(smiles) / total}%')
+                 for (id, desc), smiles in alerts_smiles.items()]
 
-    alerts_counts = {}
-    for k, v in alerts_smiles.items():
-        alerts_counts[k] = f'{len(v)} [{100 * len(v) / total}%]'
+    phys_chem_res = [dict(property=property, smiles=smiles, count=len(smiles), percentage=f'{100 * len(smiles) / total}%')
+                     for property, smiles in phys_chem_smiles.items()]
 
     return dict(total=total,
                 violations=violations,
                 n_risky_mols=len(set(risky_mols)),
                 invalids=invalids,
-                alerts_smiles=alerts_smiles,
-                phys_chem_smiles=phys_chem_smiles,
-                alerts_counts=sorted(alerts_counts.items(), key=lambda x: x[1], reverse=True),
-                phys_chem_counts=sorted(phys_chem_counts.items(), key=lambda x: x[1], reverse=True))
+                alerts_res=sorted(alert_res, key=lambda x: x['count'], reverse=True),
+                phys_chem_res=sorted(phys_chem_res, key=lambda x: x['count'], reverse=True))
 
 template_html = """
 <html>
@@ -288,10 +283,7 @@ def main():
     with open(args.smiles_file) as smiles_file:
         smiles_lst = [line.strip().split()[0] for line in smiles_file]
 
-    print(rules_dict)
-    #print(f'#SMILES: {len(smiles_lst)}')
-
-    # rules_dict = {'alert_sets': ['BMS', 'Dundee', 'Glaxo', 'Inpharmatica', 'LINT', 'MLSMR', 'PAINS', 'SureChEMBL']}
+    pprint(rules_dict)
 
     preds = filter_server.predict(dict(SMILES=smiles_lst, rules=rules_dict))
     pprint(preds['metadata'])
@@ -301,19 +293,22 @@ def main():
     with open(os.path.join(args.output_dir, 'report.json'), 'w') as f:
         json.dump(report, f, indent=2)
 
-    # for (id, desc), smiles_lst in report['alerts_smiles'].items():
-    #     figures = ''
-    #     html_path = os.path.join(args.output_dir, f'{id}.html')
-    #     for smiles in smiles_lst:
-    #         # add figure
-    #         depict(smiles, args.output_dir, args.url)
-    #         fig_path = f'img/{quote(smiles)}.svg'
-    #         figures += f'<figure><img src="{fig_path}"/></figure>\n'
-    #     # create html
-    #     html_path = dump_html(desc, figures, html_path)
-    #
-    #     print(smiles)
+    pd.DataFrame(report['alerts_res']).to_csv(os.path.join(args.output_dir, 'alerts.csv'), index=False)
+    pd.DataFrame(report['phys_chem_res']).to_csv(os.path.join(args.output_dir, 'physchem.csv'), index=False)
 
+    depicted = set()
+    for alert in report['alerts_res']:
+        figures = ''
+        html_path = os.path.join(args.output_dir, f'{id}.html')
+        for smiles in alert['smiles']:
+            # add figure
+            if smiles not in depicted:
+                depict(smiles, args.output_dir, args.url)
+                depicted.add(smiles)
+            fig_path = f'img/{quote(smiles)}.svg'
+            figures += f'<figure><img src="{fig_path}"/></figure>\n'
+        # create html
+        dump_html(alert['desc'], figures, html_path)
 
 
 if __name__ == '__main__':
