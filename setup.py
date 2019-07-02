@@ -8,6 +8,7 @@ setup(
     entry_points={
         'console_scripts': [
             'rd_filters=rd_filters.rd_filters:main',
+            'rd_analyse=rd_filters.analyse:main',
         ],
     },
     install_requires=['pandas', 'docopt'],

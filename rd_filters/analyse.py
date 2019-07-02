@@ -130,6 +130,9 @@ def main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
+    args.rules_file = args.rules_file or pkg_resources.resource_filename('rd_filters', 'data/alerts.json')
+
+
     with open(args.rules_file) as json_file:
         rules_dict = json.load(json_file)
 
