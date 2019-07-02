@@ -84,10 +84,16 @@ template_html = """
 </html>
 """
 
+index_html = """
+<html>
+    <body>
+    FILES
+    </body>
+</html>
+"""
 
-def dump_html(title, figures, html_path):
-    html_content = template_html.replace('FIGURES', figures).replace('TITLE', title)
-    # html_path = Path(json_path).with_suffix(f'.{suffix}.html')
+
+def dump_html(html_content, html_path):
     with open(html_path, 'w') as f:
         f.write(html_content)
     return str(html_path)
@@ -156,9 +162,10 @@ def main():
     pd.DataFrame(report['phys_chem_res']).to_csv(os.path.join(args.output_dir, 'physchem.csv'), index=False)
 
     depicted = set()
+    paths = ''
     for alert in report['alerts_res']:
         figures = ''
-        html_path = os.path.join(args.output_dir, f'{id}.html')
+        html_path = os.path.join(args.output_dir, f'{alert["id"]}.html')
         for smiles in alert['smiles']:
             # add figure
             if smiles not in depicted:
@@ -167,7 +174,13 @@ def main():
             fig_path = f'img/{quote(smiles)}.svg'
             figures += f'<figure><img src="{fig_path}"/></figure>\n'
         # create html
-        dump_html(alert['desc'], figures, html_path)
+        html_content = template_html.replace('FIGURES', figures).replace('TITLE', alert['desc'])
+        dump_html(html_content, html_path)
+        paths += f'<li><a href="{os.path.basename(html_path)}">{alert["id"]} - {alert["desc"]}</a></li>\n'
+
+    # index
+    html_content = index_html.replace('FILES', paths)
+    dump_html(html_content, os.path.join(args.output_dir, 'index.html'))
 
 
 if __name__ == '__main__':
