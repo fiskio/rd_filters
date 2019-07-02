@@ -86,6 +86,10 @@ template_html = """
 
 index_html = """
 <html>
+    <style>
+    .tab {position:absolute;left:100px; }
+    }
+   </style>
     <body>
     FILES
     </body>
@@ -176,7 +180,7 @@ def main():
         # create html
         html_content = template_html.replace('FIGURES', figures).replace('TITLE', alert['desc'])
         dump_html(html_content, html_path)
-        paths += f'<li><a href="{os.path.basename(html_path)}">{alert["id"]} - {alert["desc"]}</a></li>\n'
+        paths += f'<p><a href="{os.path.basename(html_path)}">{alert["id"]}<span class="tab">{alert["desc"]}</span></a></p>\n'
 
     # index
     html_content = index_html.replace('FILES', paths)
