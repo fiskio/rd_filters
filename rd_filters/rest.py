@@ -49,19 +49,22 @@ class FilterServer:
         self.alerts_df = pd.read_csv(alert_csv)
         self.num_workers = num_workers
         self.alerts_dict = self.alerts_df.groupby(by='rule_set_name').indices
+
         self.property_fn = dict(HBA=NumHAcceptors,
                                 HBD=NumHDonors,
                                 LogP=MolLogP,
                                 MW=MolWt,
                                 TPSA=TPSA)
 
-    def check_smiles(self, smiles, req_phys_chem, req_alert_sets):
+        self.smart_mols = {row['rule_id']: Chem.MolFromSmarts(row['smarts'])
+                           for _, row in self.alerts_df.iterrows()}
+
+    def check_smiles(self, smiles, mol, req_phys_chem, req_alert_sets):
         predictions = {}
         predictions['SMILES'] = smiles
         predictions['phys_chem'] = []
         predictions['alerts'] = []
         # valid?
-        mol = Chem.MolFromSmiles(smiles)
         predictions['valid_smiles'] = mol is not None
         if not predictions['valid_smiles']:
             return predictions
@@ -78,8 +81,10 @@ class FilterServer:
             # select rows
             alert_rows = self.alerts_df.iloc[self.alerts_dict[alert_name]]
             for _, row in alert_rows.iterrows():
-                smarts, max_val = row[['smarts', 'max']]
-                count = len(mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
+                rule_id, smarts, max_val = row[['rule_id', 'smarts', 'max']]
+                smart_mol = self.smart_mols[rule_id]
+                count = len(mol.GetSubstructMatches(smart_mol))
+                # count = len(mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
                 if count > max_val:
                     row['count'] = count
                     predictions['alerts'].append(dict(row))
@@ -106,11 +111,14 @@ class FilterServer:
             if rpc not in self.property_fn.keys():
                 return dict(status=f'Unknown phys_chem property: {rpc}. Available: {self.property_fn.keys()}')
 
+        # make rdkit mols
+        mols = [(smiles, Chem.MolFromSmiles(smiles)) for smiles in request_data['SMILES']]
+
         # check rules
         t0 = time()
         pool = joblib.Parallel(n_jobs=self.num_workers, backend='loky')
-        job_list = (delayed(self.check_smiles)(s, req_phys_chem, req_alert_sets)
-                    for s in tqdm(request_data['SMILES']))
+        job_list = (delayed(self.check_smiles)(s, m, req_phys_chem, req_alert_sets)
+                    for s, m in tqdm(mols))
         predictions = pool(job_list)
         t1 = time()
 
