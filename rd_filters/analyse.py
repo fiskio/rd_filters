@@ -10,8 +10,6 @@ import requests
 
 from rd_filters.rest import FilterServer
 
-from tqdm import tqdm
-
 
 def analyse(results):
     total = len(results)
@@ -30,9 +28,10 @@ def analyse(results):
         for a in v['alerts']:
             desc = a['description']
             rule_id = a['rule_id']
-            if (rule_id, desc) not in alerts_smiles:
-                alerts_smiles[(rule_id, desc)] = []
-            alerts_smiles[(rule_id, desc)].append(v['SMILES'])
+            smarts = a['smarts']
+            if (rule_id, smarts, desc) not in alerts_smiles:
+                alerts_smiles[(rule_id, smarts, desc)] = []
+            alerts_smiles[(rule_id, smarts, desc)].append(v['SMILES'])
             violations += 1
             risky_mols.append(v['SMILES'])
 
@@ -45,10 +44,11 @@ def analyse(results):
 
     alert_res = [dict(id=rule_id,
                       desc=desc,
+                      smarts=smarts,
                       smiles=smiles,
                       count=len(smiles),
                       percentage=f'{100 * len(smiles) / total}%')
-                 for (rule_id, desc), smiles in alerts_smiles.items()]
+                 for (rule_id, smarts, desc), smiles in alerts_smiles.items()]
 
     phys_chem_res = [dict(property=property,
                           smiles=smiles,
@@ -95,11 +95,40 @@ template_html = """
 index_html = """
 <html>
     <style>
-    .tab {position:absolute;left:100px; }
-    }
-   </style>
+#filter {
+  font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+  width: 100%;
+}
+
+#filter td, #filter th {
+  border: 1px solid #ddd;
+  padding: 8px;
+}
+
+#filter tr:nth-child(even){background-color: #f2f2f2;}
+
+#filter tr:hover {background-color: #ddd;}
+
+#filter th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: left;
+  background-color: #4CAF50;
+  color: white;
+}
+</style>
     <body>
-    FILES
+    <table id="filter">
+      <tr>
+        <th>RuleID</th>
+        <th>Description</th>
+        <th>Count</th>
+        <th>Percentage</th>
+        <th>SMARTS</th>
+      </tr>
+      FILES
+    </table>
     </body>
 </html>
 """
@@ -130,6 +159,16 @@ def depict(smiles, output_dir, url):
     else:
         print(f'Error: {smiles}')
         return False
+
+
+def make_table_row(html_path, alert):
+    ret = '<tr>'
+    ret += f'<td>{alert["id"]}</td>'
+    ret += f'<td><a href="{os.path.basename(html_path)}">{alert["desc"]}</a></td>'
+    ret += f'<td>{alert["count"]}</td>'
+    ret += f'<td>{alert["percentage"]}</td>\n'
+    ret += f'<td>{alert["smarts"]}</td>'
+    return ret
 
 
 def main():
@@ -163,7 +202,7 @@ def main():
 
     preds = filter_server.predict(dict(SMILES=smiles_lst, rules=rules_dict))
     pprint(preds['metadata'])
-    # pprint(preds)
+    pprint(preds)
     report = analyse(preds['violations'])
     pprint(report)
     with open(os.path.join(args.output_dir, 'report.json'), 'w') as f:
@@ -187,8 +226,7 @@ def main():
         # create html
         html_content = template_html.replace('FIGURES', figures).replace('TITLE', alert['desc'])
         dump_html(html_content, html_path)
-        paths += f'<p><a href="{os.path.basename(html_path)}">{alert["id"]}<span class="tab">{alert["desc"]}</span></a></p>\n'
-
+        paths += make_table_row(html_path, alert)
     # index
     html_content = index_html.replace('FILES', paths)
     dump_html(html_content, os.path.join(args.output_dir, 'index.html'))
