@@ -1,4 +1,5 @@
 import argparse
+import itertools as it
 import json
 import os
 from pprint import pprint
@@ -178,6 +179,7 @@ def main():
     parser.add_argument('--rules_file', default=None, help='File with the alerts')
     parser.add_argument('--num_workers', default=-1, type=int, help='Number of CPUs to use')
     parser.add_argument('--output_dir', default='.', help='Output directory')
+    parser.add_argument('--n_lines', default=None, type=int, help='Number of lines to process')
     parser.add_argument('--url', default='http://api.moldepict.prd.vlt.beno.ai/depict', help='URL of service')
     args = parser.parse_args()
 
@@ -193,7 +195,11 @@ def main():
         rules_dict = json.load(json_file)
 
     with open(args.smiles_file) as smiles_file:
-        smiles_lst = [line.strip().split()[0] for line in smiles_file if len(line.strip()) > 0]
+        smiles_lst = []
+        for line in it.islice(smiles_file, args.n_lines):
+            line = line.strip()
+            if len(line) > 0:
+                smiles_lst.append(line.split()[0])
 
     pprint(rules_dict)
 
