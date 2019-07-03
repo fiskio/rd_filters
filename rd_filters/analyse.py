@@ -152,7 +152,8 @@ def depict(smiles, output_dir, url):
 
     if request.status_code == 200:
         # save svg file
-        img_file = os.path.join(img_dir, f'{quote_plus(smiles)}.svg')
+        safe_smiles = smiles.replace('/', '_')
+        img_file = os.path.join(img_dir, f'{safe_smiles}.svg')
         with open(img_file, 'w') as sf:
             sf.write(request.text)
             print(f'OK: {img_file}')
@@ -227,7 +228,8 @@ def main():
             if smiles not in depicted:
                 depict(smiles, args.output_dir, args.url)
                 depicted.add(smiles)
-            fig_path = f'img/{quote_plus(smiles)}.svg'
+            safe_smiles = smiles.replace('/', '_')
+            fig_path = f'img/{quote_plus(safe_smiles)}.svg'
             figures += f'<figure><img src="{fig_path}"/></figure>\n'
         # create html
         html_content = template_html.replace('FIGURES', figures).replace('TITLE', alert['desc'])
