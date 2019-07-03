@@ -19,6 +19,7 @@ from rdkit.Chem.Crippen import MolLogP
 from rdkit.Chem.Descriptors import MolWt
 from rdkit.Chem.Lipinski import NumHAcceptors, NumHDonors
 from rdkit.Chem.MolSurf import TPSA
+from tqdm import tqdm
 
 setup_default_logger()
 logger = logging.getLogger(__name__)
@@ -108,7 +109,8 @@ class FilterServer:
         # check rules
         t0 = time()
         pool = joblib.Parallel(n_jobs=self.num_workers, backend='loky')
-        job_list = (delayed(self.check_smiles)(s, req_phys_chem, req_alert_sets) for s in request_data['SMILES'])
+        job_list = (delayed(self.check_smiles)(s, req_phys_chem, req_alert_sets)
+                    for s in tqdm(request_data['SMILES']))
         predictions = pool(job_list)
         t1 = time()
 
@@ -201,6 +203,7 @@ def analyse(results):
                 invalids=invalids,
                 alerts_res=sorted(alert_res, key=lambda x: x['count'], reverse=True),
                 phys_chem_res=sorted(phys_chem_res, key=lambda x: x['count'], reverse=True))
+
 
 template_html = """
 <html>

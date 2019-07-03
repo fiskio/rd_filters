@@ -10,6 +10,8 @@ import requests
 
 from rd_filters.rest import FilterServer
 
+from tqdm import tqdm
+
 
 def analyse(results):
     total = len(results)
@@ -41,12 +43,18 @@ def analyse(results):
             violations += 1
             risky_mols.append(v['SMILES'])
 
-    alert_res = [dict(id=id, desc=desc, smiles=smiles, count=len(smiles), percentage=f'{100 * len(smiles) / total}%')
-                 for (id, desc), smiles in alerts_smiles.items()]
+    alert_res = [dict(id=rule_id,
+                      desc=desc,
+                      smiles=smiles,
+                      count=len(smiles),
+                      percentage=f'{100 * len(smiles) / total}%')
+                 for (rule_id, desc), smiles in alerts_smiles.items()]
 
-    phys_chem_res = [
-        dict(property=property, smiles=smiles, count=len(smiles), percentage=f'{100 * len(smiles) / total}%')
-        for property, smiles in phys_chem_smiles.items()]
+    phys_chem_res = [dict(property=property,
+                          smiles=smiles,
+                          count=len(smiles),
+                          percentage=f'{100 * len(smiles) / total}%')
+                     for property, smiles in phys_chem_smiles.items()]
 
     return dict(total=total,
                 violations=violations,
@@ -141,7 +149,6 @@ def main():
         os.makedirs(args.output_dir)
 
     args.rules_file = args.rules_file or pkg_resources.resource_filename('rd_filters', 'data/alerts.json')
-
 
     with open(args.rules_file) as json_file:
         rules_dict = json.load(json_file)

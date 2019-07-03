@@ -11,6 +11,6 @@ setup(
             'rd_analyse=rd_filters.analyse:main',
         ],
     },
-    install_requires=['pandas', 'docopt'],
+    install_requires=['pandas', 'docopt', 'tqdm'],
     include_package_data=True,
 )
