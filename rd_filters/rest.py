@@ -59,12 +59,13 @@ class FilterServer:
         self.smart_mols = {row['rule_id']: Chem.MolFromSmarts(row['smarts'])
                            for _, row in self.alerts_df.iterrows()}
 
-    def check_smiles(self, smiles, mol, req_phys_chem, req_alert_sets):
+    def check_smiles(self, smiles, req_phys_chem, req_alert_sets):
         predictions = {}
         predictions['SMILES'] = smiles
         predictions['phys_chem'] = []
         predictions['alerts'] = []
         # valid?
+        mol = Chem.MolFromSmiles(smiles)
         predictions['valid_smiles'] = mol is not None
         if not predictions['valid_smiles']:
             return predictions
@@ -111,14 +112,11 @@ class FilterServer:
             if rpc not in self.property_fn.keys():
                 return dict(status=f'Unknown phys_chem property: {rpc}. Available: {self.property_fn.keys()}')
 
-        # make rdkit mols
-        mols = [(smiles, Chem.MolFromSmiles(smiles)) for smiles in request_data['SMILES']]
-
         # check rules
         t0 = time()
         pool = joblib.Parallel(n_jobs=self.num_workers, backend='loky')
-        job_list = (delayed(self.check_smiles)(s, m, req_phys_chem, req_alert_sets)
-                    for s, m in tqdm(mols))
+        job_list = (delayed(self.check_smiles)(s, req_phys_chem, req_alert_sets)
+                    for s in tqdm(request_data['SMILES']))
         predictions = pool(job_list)
         t1 = time()
 
