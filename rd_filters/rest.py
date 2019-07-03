@@ -48,19 +48,20 @@ class FilterServer:
 
         self.alerts_df = pd.read_csv(alert_csv)
         self.num_workers = num_workers
-        self.alerts_dict = self.alerts_df.groupby(by='rule_set_name').indices
+        # self.alerts_dict = self.alerts_df.groupby(by='rule_set_name').indices
 
-        self.property_fn = dict(HBA=NumHAcceptors,
-                                HBD=NumHDonors,
-                                LogP=MolLogP,
-                                MW=MolWt,
-                                TPSA=TPSA)
+        # self.property_fn = self.get_property_fn()
 
         self.smart_mols = {row['rule_id']: Chem.MolFromSmarts(row['smarts'])
                            for _, row in self.alerts_df.iterrows()}
 
-    def check_smiles(self, smiles, req_phys_chem, req_alert_sets):
-        predictions = {}
+    # @staticmethod
+    # def get_property_fn():
+    #     return dict(HBA=NumHAcceptors, HBD=NumHDonors, LogP=MolLogP, MW=MolWt, TPSA=TPSA)
+
+    @staticmethod
+    def check_smiles(smiles, req_phys_chem, alert_rows, smart_mols):
+        predictions = dict()
         predictions['SMILES'] = smiles
         predictions['phys_chem'] = []
         predictions['alerts'] = []
@@ -71,24 +72,25 @@ class FilterServer:
             return predictions
 
         # phys_chem
+        property_fn = dict(HBA=NumHAcceptors, HBD=NumHDonors, LogP=MolLogP, MW=MolWt, TPSA=TPSA)
         for property_name, (min_val, max_val) in req_phys_chem.items():
-            property_val = self.property_fn[property_name](mol)
+            property_val = property_fn[property_name](mol)
             if not min_val <= property_val <= max_val:
                 violation = (property_name, f'{property_val} not in [{min_val}, {max_val}]')
                 predictions['phys_chem'].append(violation)
 
         # alerts
-        for alert_name in req_alert_sets:
+        # for alert_name in req_alert_sets:
             # select rows
-            alert_rows = self.alerts_df.iloc[self.alerts_dict[alert_name]]
-            for _, row in alert_rows.iterrows():
-                rule_id, smarts, max_val = row[['rule_id', 'smarts', 'max']]
-                smart_mol = self.smart_mols[rule_id]
-                count = len(mol.GetSubstructMatches(smart_mol))
-                # count = len(mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
-                if count > max_val:
-                    row['count'] = count
-                    predictions['alerts'].append(dict(row))
+            # alert_rows = self.alerts_df.iloc[self.alerts_dict[alert_name]]
+        for _, row in alert_rows.iterrows():
+            rule_id, smarts, max_val = row[['rule_id', 'smarts', 'max']]
+            smart_mol = smart_mols[rule_id]
+            count = len(mol.GetSubstructMatches(smart_mol))
+            # count = len(mol.GetSubstructMatches(Chem.MolFromSmarts(smarts)))
+            if count > max_val:
+                row['count'] = count
+                predictions['alerts'].append(dict(row))
 
         return predictions
 
@@ -102,20 +104,23 @@ class FilterServer:
         if 'rules' not in request_data:
             return dict(status=f'Error: a `rules` key is required')
 
-        req_alert_sets = request_data['rules'].get('alert_sets', {})
-        for ras in req_alert_sets:
-            if ras not in self.alerts_dict.keys():
-                return dict(status=f'Unknown alert set: {ras}. Available: {self.alerts_dict.keys()}')
+        req_alert_lst = request_data['rules'].get('alert_sets', [])
+        # for ras in req_alert_sets:
+        #     if ras not in self.alerts_dict.keys():
+        #         return dict(status=f'Unknown alert set: {ras}. Available: {self.alerts_dict.keys()}')
 
         req_phys_chem = request_data['rules'].get('phys_chem', {})
-        for rpc in req_phys_chem:
-            if rpc not in self.property_fn.keys():
-                return dict(status=f'Unknown phys_chem property: {rpc}. Available: {self.property_fn.keys()}')
+        # for rpc in req_phys_chem:
+        #     if rpc not in self.property_fn.keys():
+        #         return dict(status=f'Unknown phys_chem property: {rpc}. Available: {self.property_fn.keys()}')
+
+        # get rows for the requested alerts
+        alert_rows = self.alerts_df[self.alerts_df['rule_set_name'].isin(req_alert_lst)]
 
         # check rules
         t0 = time()
         pool = joblib.Parallel(n_jobs=self.num_workers, backend='loky')
-        job_list = (delayed(self.check_smiles)(s, req_phys_chem, req_alert_sets)
+        job_list = (delayed(self.check_smiles)(s, req_phys_chem, alert_rows, self.smart_mols)
                     for s in tqdm(request_data['SMILES']))
         predictions = pool(job_list)
         t1 = time()
@@ -132,8 +137,6 @@ class FilterServer:
 
         logger.info('Finished predictions')
         return response
-
-
 
 
 app = Flask(__name__)
