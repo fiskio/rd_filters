@@ -48,13 +48,13 @@ def analyse(results):
                       smarts=smarts,
                       smiles=smiles,
                       count=len(smiles),
-                      percentage=f'{100 * len(smiles) / total}%')
+                      percentage=f'{100 * len(smiles) / total:.2f}%')
                  for (rule_id, smarts, desc), smiles in alerts_smiles.items()]
 
     phys_chem_res = [dict(property=property,
                           smiles=smiles,
                           count=len(smiles),
-                          percentage=f'{100 * len(smiles) / total}%')
+                          percentage=f'{100 * len(smiles) / total:.2f}%')
                      for property, smiles in phys_chem_smiles.items()]
 
     return dict(total=total,
