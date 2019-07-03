@@ -193,7 +193,7 @@ def main():
         rules_dict = json.load(json_file)
 
     with open(args.smiles_file) as smiles_file:
-        smiles_lst = [line.strip().split()[0] for line in smiles_file]
+        smiles_lst = [line.strip().split()[0] for line in smiles_file if len(line.strip()) > 0]
 
     pprint(rules_dict)
 
